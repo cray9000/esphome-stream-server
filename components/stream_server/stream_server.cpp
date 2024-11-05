@@ -163,12 +163,15 @@ void StreamServerComponent::log_received_data() {
     std::string log_message = "Received data: ";
 
     for (size_t i = 0; i < bytes_to_log; ++i) {
-        // Append the hex representation of each byte to the log message
-        log_message += format("{:02X} ", received_data_[i]);
+        // Convert each byte to a 2-digit hex representation
+        char byte_str[4];  // "XX " (2 characters for hex + space)
+        snprintf(byte_str, sizeof(byte_str), "%02X ", received_data_[i]);
+        log_message += byte_str;  // Append the byte to the log message
     }
 
     // Log the message using ESPHome's logging system
     ESP_LOGD(TAG, "%s", log_message.c_str());
+}
 
 StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
     : socket(std::move(socket)), identifier{identifier}, position{position} {}
