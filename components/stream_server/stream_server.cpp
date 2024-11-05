@@ -9,6 +9,7 @@
 #include "esphome/components/socket/socket.h"
 
 #include "esphome/core/log.h"  // Ensure you include the logging header
+#include "fmt/core.h"  // For fmt::format
 
 static const char *TAG = "stream_server";
 
