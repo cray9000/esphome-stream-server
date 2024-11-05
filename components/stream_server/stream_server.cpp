@@ -94,6 +94,8 @@ void StreamServerComponent::cleanup() {
 }
 
 void StreamServerComponent::read() {
+    // A buffer to store received data in the component
+    std::vector<uint8_t> received_data_;
     size_t len = 0;
     int available = this->stream_->available();  // Check if data is available
 
