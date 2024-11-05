@@ -133,10 +133,15 @@ void StreamServerComponent::write() {
         if (client.disconnected)
             continue;
 
-        while ((read = client.socket->read(&buf, sizeof(buf))) > 0)
-            // If you have another source for writing data, write it here.
-            // Example: You can replace this with sending data to another output device.
-            ; 
+        while ((read = client.socket->read(&buf, sizeof(buf))) > 0) {
+            // Send the received data to the sensor
+            if (this->received_data_sensor_) {
+                // For example, you could send the data as a number (sum of bytes, or just length)
+                // Adjust this as needed for your use case
+                float data_value = static_cast<float>(read);  // Here, sending the number of bytes read
+                this->received_data_sensor_->publish_state(data_value);
+            }
+        }
 
         if (read == 0 || errno == ECONNRESET) {
             ESP_LOGD(TAG, "Client %s disconnected", client.identifier.c_str());
