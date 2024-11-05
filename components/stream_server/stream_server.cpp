@@ -129,17 +129,17 @@ void StreamServerComponent::flush() {
 void StreamServerComponent::write() {
     uint8_t buf[128];
     ssize_t read;
+    size_t total_bytes_received = 0;
     for (Client &client : this->clients_) {
         if (client.disconnected)
             continue;
 
         while ((read = client.socket->read(&buf, sizeof(buf))) > 0) {
-            // Send the received data to the sensor
-            if (this->received_data_sensor_) {
-                // For example, you could send the data as a number (sum of bytes, or just length)
-                // Adjust this as needed for your use case
-                float data_value = static_cast<float>(read);  // Here, sending the number of bytes read
-                this->received_data_sensor_->publish_state(data_value);
+            total_bytes_received += read;  // Increment the total bytes received
+
+            // If the data_received_sensor_ is set, publish the total bytes received
+            if (this->data_received_sensor_) {
+                this->data_received_sensor_->publish_state(static_cast<float>(total_bytes_received));
             }
         }
 
