@@ -131,26 +131,23 @@ void StreamServerComponent::flush() {
 void StreamServerComponent::write() {
     uint8_t buf[128];
     ssize_t read;
-    // A buffer to store received data in the component
-    std::vector<uint8_t> received_data_;
     
+    // Assuming len is the number of bytes you're reading from the client socket
     for (Client &client : this->clients_) {
         if (client.disconnected)
             continue;
 
-        ESP_LOGD(TAG, "Buffer data (size: %d):", len);
-            for (size_t i = 0; i < len; ++i) {
-            ESP_LOGD(TAG, "Byte %d: %02X", i, this->buf_[i]);
-        }
-
         while ((read = client.socket->read(&buf, sizeof(buf))) > 0) {
-            // Store the received data in the received_data_ buffer
-            received_data_.insert(received_data_.end(), buf, buf + read);
+            // Do something with the data
+            // For example, send it to another output device
+            
+            // Set len to the number of bytes read from the client
+            size_t len = read;  // This defines the number of bytes to process
 
-            ESP_LOGD(TAG, "Received data size: %zu", received_data_.size());
+            // Log the size of the data in the buffer
+            ESP_LOGD(TAG, "Buffer data (size: %d):", len);
 
-            // Log the received data
-            log_received_data();
+            // Add more logic here to send the data to another device, process it, etc.
         }
 
         if (read == 0 || errno == ECONNRESET) {
@@ -163,6 +160,7 @@ void StreamServerComponent::write() {
         }
     }
 }
+
 
 // Log the received data in a human-readable format (hex)
 void StreamServerComponent::log_received_data() {
