@@ -1,6 +1,5 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-# from esphome.components import uart
 from esphome.const import CONF_ID, CONF_PORT
 
 # ESPHome doesn't know the Stream abstraction yet, so hardcode to use a UART for now.
@@ -24,7 +23,6 @@ CONFIG_SCHEMA = cv.All(
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
-    .extend(uart.UART_DEVICE_SCHEMA),
 )
 
 
