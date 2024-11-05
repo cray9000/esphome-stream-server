@@ -147,6 +147,9 @@ void StreamServerComponent::write() {
             // Log the size of the data in the buffer
             ESP_LOGD(TAG, "Buffer data (size: %d):", len);
 
+            // Assuming this is the read logic
+            this->received_data_.insert(this->received_data_.end(), buf_, buf_ + read);
+
             // Add more logic here to send the data to another device, process it, etc.
         }
 
