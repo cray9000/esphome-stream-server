@@ -43,6 +43,9 @@ protected:
     void flush();
     void write();
 
+    // Declare log_received_data as a protected method
+    void log_received_data();  
+
     size_t buf_index(size_t pos) { return pos & (this->buf_size_ - 1); }
     size_t buf_ahead(size_t pos) { return (pos | (this->buf_size_ - 1)) - pos + 1; }
 
