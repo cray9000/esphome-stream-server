@@ -164,28 +164,13 @@ void StreamServerComponent::write() {
 
 // Log the received data in a human-readable format (hex)
 void StreamServerComponent::log_received_data() {
-    ESP_LOGD(TAG, "Logging received data...");
-
-    // Log the actual data in hex format (optional, if needed)
-for (size_t i = 0; i < len; ++i) {
-    ESP_LOGD(TAG, "Byte %d: %02X", i, buf[i]);
-}
-
-    if (received_data_.empty()) {
-        ESP_LOGD(TAG, "No data to log");
-        return;
-    }
-
-    ESP_LOGD(TAG, "Received data size: %d", received_data_.size());
-
-    // Check the actual content of the data to ensure it's being inserted correctly
-    for (size_t i = 0; i < received_data_.size(); ++i) {
-        ESP_LOGD(TAG, "Byte %d: %02X", i, received_data_[i]);
-    }
-
+    ESP_LOGD(TAG, "Logging received data...");  // Confirm method is being called
+    
+    // Get the size of the received data
     size_t bytes_to_log = std::min(received_data_.size(), size_t(128));  // Limit to first 128 bytes
     std::string log_message = "Received data: ";
 
+    // Loop through the received data and log it in hexadecimal format
     for (size_t i = 0; i < bytes_to_log; ++i) {
         // Convert each byte to a 2-digit hex representation
         char byte_str[4];  // "XX " (2 characters for hex + space)
