@@ -142,7 +142,7 @@ void StreamServerComponent::write() {
             // Store the received data in the received_data_ buffer
             received_data_.insert(received_data_.end(), buf, buf + read);
 
-            // Log the received data in hex format
+            // Log the received data
             log_received_data();
         }
 
@@ -157,12 +157,11 @@ void StreamServerComponent::write() {
     }
 }
 
-// A function to log the received data in a readable hex format
+// Log the received data in a human-readable format (hex)
 void StreamServerComponent::log_received_data() {
-    // If you only want to log a portion of the data (e.g., the most recent data)
     size_t bytes_to_log = std::min(received_data_.size(), size_t(128));  // Limit to first 128 bytes
     std::string log_message = "Received data: ";
-    
+
     for (size_t i = 0; i < bytes_to_log; ++i) {
         // Append the hex representation of each byte to the log message
         log_message += fmt::format("{:02X} ", received_data_[i]);
