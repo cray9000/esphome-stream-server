@@ -15,21 +15,13 @@ ns = cg.global_ns
 StreamServerComponent = ns.class_("StreamServerComponent", cg.Component)
 
 
-def validate_buffer_size(buffer_size):
-    if buffer_size & (buffer_size - 1) != 0:
-        raise cv.Invalid("Buffer size must be a power of two.")
-    return buffer_size
-
 
 CONFIG_SCHEMA = cv.All(
     cv.require_esphome_version(2022, 3, 0),
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(StreamServerComponent),
-            cv.Optional(CONF_PORT, default=6638): cv.port,
-            cv.Optional(CONF_BUFFER_SIZE, default=128): cv.All(
-                cv.positive_int, validate_buffer_size
-            ),
+            cv.Optional(CONF_PORT, default=6638): cv.port
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
