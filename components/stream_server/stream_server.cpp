@@ -161,6 +161,7 @@ void StreamServerComponent::write() {
 
 // Log the received data in a human-readable format (hex)
 void StreamServerComponent::log_received_data() {
+    ESP_LOGD(TAG, "Logging received data...");  // Confirm method is being called
     size_t bytes_to_log = std::min(received_data_.size(), size_t(128));  // Limit to first 128 bytes
     std::string log_message = "Received data: ";
 
