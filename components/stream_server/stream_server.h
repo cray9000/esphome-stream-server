@@ -18,6 +18,9 @@ class StreamServerComponent : public esphome::Component {
 public:
     StreamServerComponent() = default;
 
+    // Pointer to a sensor component for sending data
+    esphome::sensor::Sensor *received_data_sensor_;
+
 #ifdef USE_BINARY_SENSOR
     void set_connected_sensor(esphome::binary_sensor::BinarySensor *connected) { this->connected_sensor_ = connected; }
 #endif
