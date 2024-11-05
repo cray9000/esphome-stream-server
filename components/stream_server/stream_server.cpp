@@ -6,7 +6,7 @@
 
 #include "esphome/components/network/util.h"
 #include "esphome/components/socket/socket.h"
-#include "esphome/components/select/select.h" // For select() to check if data is available for reading
+// #include "esphome/core/select/select.h" // For select() to check if data is available for reading
 
 static const char *TAG = "stream_server";
 
