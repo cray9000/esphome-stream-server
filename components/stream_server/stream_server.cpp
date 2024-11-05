@@ -3,10 +3,10 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 #include "esphome/core/version.h"
-#include <sys/select.h>  // For select() to check if data is available for reading
 
 #include "esphome/components/network/util.h"
 #include "esphome/components/socket/socket.h"
+#include "esphome/components/select/select.h" // For select() to check if data is available for reading
 
 static const char *TAG = "stream_server";
 
