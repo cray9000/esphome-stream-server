@@ -9,7 +9,6 @@
 #include "esphome/components/socket/socket.h"
 
 #include "esphome/core/log.h"  // Ensure you include the logging header
-#include "fmt/core.h"  // For fmt::format
 
 static const char *TAG = "stream_server";
 
@@ -165,12 +164,11 @@ void StreamServerComponent::log_received_data() {
 
     for (size_t i = 0; i < bytes_to_log; ++i) {
         // Append the hex representation of each byte to the log message
-        log_message += fmt::format("{:02X} ", received_data_[i]);
+        log_message += format("{:02X} ", received_data_[i]);
     }
 
-    // Log the message
+    // Log the message using ESPHome's logging system
     ESP_LOGD(TAG, "%s", log_message.c_str());
-}
 
 StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
     : socket(std::move(socket)), identifier{identifier}, position{position} {}
