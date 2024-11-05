@@ -20,7 +20,7 @@ public:
     StreamServerComponent() = default;
     //explicit StreamServerComponent(esphome::uart::UARTComponent *stream) : stream_{stream} {}
     //void set_uart_parent(esphome::uart::UARTComponent *parent) { this->stream_ = parent; }
-    void set_buffer_size(size_t size) { this->buf_size_ = size; }
+    //void set_buffer_size(size_t size) { this->buf_size_ = size; }
 
 #ifdef USE_BINARY_SENSOR
     void set_connected_sensor(esphome::binary_sensor::BinarySensor *connected) { this->connected_sensor_ = connected; }
@@ -62,7 +62,7 @@ protected:
 
     esphome::uart::UARTComponent *stream_{nullptr};
     uint16_t port_;
-    size_t buf_size_;
+    //size_t buf_size_;
 
 #ifdef USE_BINARY_SENSOR
     esphome::binary_sensor::BinarySensor *connected_sensor_;
@@ -71,9 +71,9 @@ protected:
     esphome::sensor::Sensor *connection_count_sensor_;
 #endif
 
-    std::unique_ptr<uint8_t[]> buf_{};
-    size_t buf_head_{0};
-    size_t buf_tail_{0};
+    //std::unique_ptr<uint8_t[]> buf_{};
+    //size_t buf_head_{0};
+    //size_t buf_tail_{0};
 
     std::unique_ptr<esphome::socket::Socket> socket_{};
     std::vector<Client> clients_{};
