@@ -96,8 +96,23 @@ void StreamServerComponent::cleanup() {
 void StreamServerComponent::read() {
     size_t len = 0;
     int available;
-    // There is no UART stream anymore; this function now doesn't do anything.
-    // You can replace it with a custom data source if necessary (e.g., network, file).
+    while ((available = this->stream_->available()) > 0) {
+        size_t free = this->buf_size_ - (this->buf_head_ - this->buf_tail_);
+        if (free == 0) {
+            // Handle buffer overflow scenario
+            return;
+        }
+
+        len = std::min<size_t>(available, std::min<size_t>(this->buf_ahead(this->buf_head_), free));
+        this->stream_->read_array(&this->buf_[this->buf_index(this->buf_head_)], len);
+        this->buf_head_ += len;
+
+        // Add the received data to the received_data_ vector
+        received_data_.insert(received_data_.end(), this->buf_, this->buf_ + len);
+
+        // Log the received data if necessary
+        log_received_data();
+    }
 }
 
 void StreamServerComponent::flush() {
