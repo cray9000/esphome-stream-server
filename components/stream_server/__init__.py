@@ -21,9 +21,6 @@ CONFIG_SCHEMA = cv.All(
         {
             cv.GenerateID(): cv.declare_id(StreamServerComponent),
             cv.Optional(CONF_PORT, default=6638): cv.port,
-            cv.Optional(CONF_BUFFER_SIZE, default=128): cv.All(
-                cv.positive_int, validate_buffer_size
-            ),
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
