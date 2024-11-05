@@ -170,6 +170,7 @@ void StreamServerComponent::log_received_data() {
     }
 
     // Log the message using ESPHome's logging system
+    ESP_LOGD(TAG, "Received data size: %zu", received_data_.size());
     ESP_LOGD(TAG, "%s", log_message.c_str());
 }
 
