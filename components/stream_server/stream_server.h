@@ -44,7 +44,6 @@ protected:
     void write();
 
     // Declare log_received_data as a protected method
-    void log_received_data();  
     std::vector<uint8_t> received_data_;  // This will store the received data
 
     size_t buf_index(size_t pos) { return pos & (this->buf_size_ - 1); }
