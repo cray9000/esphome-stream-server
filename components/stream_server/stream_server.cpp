@@ -129,18 +129,13 @@ void StreamServerComponent::flush() {
 void StreamServerComponent::write() {
     uint8_t buf[128];
     ssize_t read;
-    size_t total_bytes_received = 0;
     for (Client &client : this->clients_) {
         if (client.disconnected)
             continue;
 
         while ((read = client.socket->read(&buf, sizeof(buf))) > 0) {
-            total_bytes_received += read;  // Increment the total bytes received
-
-            // If the data_received_sensor_ is set, publish the total bytes received
-            if (this->data_received_sensor_) {
-                this->data_received_sensor_->publish_state(static_cast<float>(total_bytes_received));
-            }
+            // Store the received data in the received_data_ buffer
+            received_data_.insert(received_data_.end(), buf, buf + read);
         }
 
         if (read == 0 || errno == ECONNRESET) {
