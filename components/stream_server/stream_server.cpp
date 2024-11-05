@@ -139,6 +139,13 @@ void StreamServerComponent::write() {
             continue;
 
         while ((read = client.socket->read(&buf, sizeof(buf))) > 0) {
+
+            ESP_LOGD(TAG, "Buffer data (size: %d):", len);
+            for (size_t i = 0; i < len; ++i) {
+                ESP_LOGD(TAG, "Byte %d: %02X", i, this->buf_[i]);
+            }
+
+            received_data_.insert(received_data_.end(), this->buf_, this->buf_ + len);
             // Store the received data in the received_data_ buffer
             received_data_.insert(received_data_.end(), buf, buf + read);
 
