@@ -2,7 +2,7 @@
 
 #include "esphome/core/component.h"
 #include "esphome/components/socket/socket.h"
-#include "esphome/components/uart/uart.h"
+//#include "esphome/components/uart/uart.h"
 
 #ifdef USE_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
@@ -18,8 +18,8 @@
 class StreamServerComponent : public esphome::Component {
 public:
     StreamServerComponent() = default;
-    explicit StreamServerComponent(esphome::uart::UARTComponent *stream) : stream_{stream} {}
-    void set_uart_parent(esphome::uart::UARTComponent *parent) { this->stream_ = parent; }
+    //explicit StreamServerComponent(esphome::uart::UARTComponent *stream) : stream_{stream} {}
+    //void set_uart_parent(esphome::uart::UARTComponent *parent) { this->stream_ = parent; }
     void set_buffer_size(size_t size) { this->buf_size_ = size; }
 
 #ifdef USE_BINARY_SENSOR
