@@ -77,7 +77,7 @@ void StreamServerComponent::accept() {
 
     socket->setblocking(false);
     std::string identifier = socket->getpeername();
-    this->clients_.emplace_back(std::move(socket), identifier, this->buf_head_);
+    //this->clients_.emplace_back(std::move(socket), identifier, this->buf_head_);
     ESP_LOGD(TAG, "New client connected from %s", identifier.c_str());
     this->publish_sensor();
 }
