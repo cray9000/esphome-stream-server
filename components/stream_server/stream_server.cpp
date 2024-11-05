@@ -2,7 +2,6 @@
 
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
-#include "esphome/core/util.h"
 #include "esphome/core/version.h"
 
 #include "esphome/components/network/util.h"
@@ -15,30 +14,26 @@ using namespace esphome;
 void StreamServerComponent::setup() {
     ESP_LOGCONFIG(TAG, "Setting up stream server...");
 
-    // The make_unique() wrapper doesn't like arrays, so initialize the unique_ptr directly.
-    this->buf_ = std::unique_ptr<uint8_t[]>{new uint8_t[this->buf_size_]};
+    // Initialize the buffer for storing data
+    this->buf_ = std::make_unique<uint8_t[]>(this->buf_size_);
 
     struct sockaddr_storage bind_addr;
-#if ESPHOME_VERSION_CODE >= VERSION_CODE(2023, 4, 0)
     socklen_t bind_addrlen = socket::set_sockaddr_any(reinterpret_cast<struct sockaddr *>(&bind_addr), sizeof(bind_addr), this->port_);
-#else
-    socklen_t bind_addrlen = socket::set_sockaddr_any(reinterpret_cast<struct sockaddr *>(&bind_addr), sizeof(bind_addr), htons(this->port_));
-#endif
 
-    this->socket_ = socket::socket_ip(SOCK_STREAM, PF_INET);
-    this->socket_->setblocking(false);
-    this->socket_->bind(reinterpret_cast<struct sockaddr *>(&bind_addr), bind_addrlen);
-    this->socket_->listen(8);
+    this->server_socket_ = socket::socket_ip(SOCK_STREAM, PF_INET);
+    this->server_socket_->setblocking(false);
+    this->server_socket_->bind(reinterpret_cast<struct sockaddr *>(&bind_addr), bind_addrlen);
+    this->server_socket_->listen(8);  // Listen for incoming client connections
 
-    this->publish_sensor();
+    this->publish_sensor();  // Publish sensor state if needed
 }
 
 void StreamServerComponent::loop() {
-    this->accept();
-    this->read();
-    this->flush();
-    this->write();
-    this->cleanup();
+    this->accept();  // Accept new client connections
+    this->read();    // Read data from clients
+    this->flush();   // Flush data to clients
+    this->write();   // Write data back to the stream
+    this->cleanup(); // Clean up any disconnected clients
 }
 
 void StreamServerComponent::dump_config() {
@@ -71,13 +66,14 @@ void StreamServerComponent::publish_sensor() {
 void StreamServerComponent::accept() {
     struct sockaddr_storage client_addr;
     socklen_t client_addrlen = sizeof(client_addr);
-    std::unique_ptr<socket::Socket> socket = this->socket_->accept(reinterpret_cast<struct sockaddr *>(&client_addr), &client_addrlen);
-    if (!socket)
+    std::unique_ptr<socket::Socket> client_socket = this->server_socket_->accept(reinterpret_cast<struct sockaddr *>(&client_addr), &client_addrlen);
+
+    if (!client_socket)
         return;
 
-    socket->setblocking(false);
-    std::string identifier = socket->getpeername();
-    this->clients_.emplace_back(std::move(socket), identifier, this->buf_head_);
+    client_socket->setblocking(false);
+    std::string identifier = client_socket->getpeername();
+    this->clients_.emplace_back(std::move(client_socket), identifier, this->buf_head_);
     ESP_LOGD(TAG, "New client connected from %s", identifier.c_str());
     this->publish_sensor();
 }
@@ -94,10 +90,9 @@ void StreamServerComponent::cleanup() {
 void StreamServerComponent::read() {
     size_t len = 0;
     int available;
-    while ((available = this->stream_->available()) > 0) {
+    while ((available = this->server_socket_->available()) > 0) {
         size_t free = this->buf_size_ - (this->buf_head_ - this->buf_tail_);
         if (free == 0) {
-            // Only overwrite if nothing has been added yet, otherwise give flush() a chance to empty the buffer first.
             if (len > 0)
                 return;
 
@@ -112,9 +107,8 @@ void StreamServerComponent::read() {
             }
         }
 
-        // Fill all available contiguous space in the ring buffer.
         len = std::min<size_t>(available, std::min<size_t>(this->buf_ahead(this->buf_head_), free));
-        this->stream_->read_array(&this->buf_[this->buf_index(this->buf_head_)], len);
+        this->server_socket_->read_array(&this->buf_[this->buf_index(this->buf_head_)], len);
         this->buf_head_ += len;
     }
 }
@@ -126,8 +120,6 @@ void StreamServerComponent::flush() {
         if (client.disconnected || client.position == this->buf_head_)
             continue;
 
-        // Split the write into two parts: from the current position to the end of the ring buffer, and from the start
-        // of the ring buffer until the head. The second part might be zero if no wraparound is necessary.
         struct iovec iov[2];
         iov[0].iov_base = &this->buf_[this->buf_index(client.position)];
         iov[0].iov_len = std::min(this->buf_head_ - client.position, this->buf_ahead(client.position));
@@ -138,9 +130,8 @@ void StreamServerComponent::flush() {
         } else if (written == 0 || errno == ECONNRESET) {
             ESP_LOGD(TAG, "Client %s disconnected", client.identifier.c_str());
             client.disconnected = true;
-            continue;  // don't consider this client when calculating the tail position
+            continue;
         } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            // Expected if the (TCP) transmit buffer is full, nothing to do.
         } else {
             ESP_LOGE(TAG, "Failed to write to client %s with error %d!", client.identifier.c_str(), errno);
         }
@@ -157,13 +148,12 @@ void StreamServerComponent::write() {
             continue;
 
         while ((read = client.socket->read(&buf, sizeof(buf))) > 0)
-            this->stream_->write_array(buf, read);
+            this->server_socket_->write_array(buf, read);
 
         if (read == 0 || errno == ECONNRESET) {
             ESP_LOGD(TAG, "Client %s disconnected", client.identifier.c_str());
             client.disconnected = true;
         } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            // Expected if the (TCP) receive buffer is empty, nothing to do.
         } else {
             ESP_LOGW(TAG, "Failed to read from client %s with error %d!", client.identifier.c_str(), errno);
         }
