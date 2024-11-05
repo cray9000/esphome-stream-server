@@ -94,29 +94,8 @@ void StreamServerComponent::cleanup() {
 void StreamServerComponent::read() {
     size_t len = 0;
     int available;
-    while ((available = this->stream_->available()) > 0) {
-        size_t free = this->buf_size_ - (this->buf_head_ - this->buf_tail_);
-        if (free == 0) {
-            // Only overwrite if nothing has been added yet, otherwise give flush() a chance to empty the buffer first.
-            if (len > 0)
-                return;
-
-            ESP_LOGE(TAG, "Incoming bytes available, but outgoing buffer is full: stream will be corrupted!");
-            free = std::min<size_t>(available, this->buf_size_);
-            this->buf_tail_ += free;
-            for (Client &client : this->clients_) {
-                if (client.position < this->buf_tail_) {
-                    ESP_LOGW(TAG, "Dropped %u pending bytes for client %s", this->buf_tail_ - client.position, client.identifier.c_str());
-                    client.position = this->buf_tail_;
-                }
-            }
-        }
-
-        // Fill all available contiguous space in the ring buffer.
-        len = std::min<size_t>(available, std::min<size_t>(this->buf_ahead(this->buf_head_), free));
-        this->stream_->read_array(&this->buf_[this->buf_index(this->buf_head_)], len);
-        this->buf_head_ += len;
-    }
+    // There is no UART stream anymore; this function now doesn't do anything.
+    // You can replace it with a custom data source if necessary (e.g., network, file).
 }
 
 void StreamServerComponent::flush() {
@@ -126,8 +105,6 @@ void StreamServerComponent::flush() {
         if (client.disconnected || client.position == this->buf_head_)
             continue;
 
-        // Split the write into two parts: from the current position to the end of the ring buffer, and from the start
-        // of the ring buffer until the head. The second part might be zero if no wraparound is necessary.
         struct iovec iov[2];
         iov[0].iov_base = &this->buf_[this->buf_index(client.position)];
         iov[0].iov_len = std::min(this->buf_head_ - client.position, this->buf_ahead(client.position));
@@ -138,7 +115,7 @@ void StreamServerComponent::flush() {
         } else if (written == 0 || errno == ECONNRESET) {
             ESP_LOGD(TAG, "Client %s disconnected", client.identifier.c_str());
             client.disconnected = true;
-            continue;  // don't consider this client when calculating the tail position
+            continue;
         } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
             // Expected if the (TCP) transmit buffer is full, nothing to do.
         } else {
@@ -157,7 +134,9 @@ void StreamServerComponent::write() {
             continue;
 
         while ((read = client.socket->read(&buf, sizeof(buf))) > 0)
-            this->stream_->write_array(buf, read);
+            // If you have another source for writing data, write it here.
+            // Example: You can replace this with sending data to another output device.
+            ; 
 
         if (read == 0 || errno == ECONNRESET) {
             ESP_LOGD(TAG, "Client %s disconnected", client.identifier.c_str());
