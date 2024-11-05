@@ -142,6 +142,8 @@ void StreamServerComponent::write() {
             // Store the received data in the received_data_ buffer
             received_data_.insert(received_data_.end(), buf, buf + read);
 
+            ESP_LOGD(TAG, "Received data size: %zu", received_data_.size());
+
             // Log the received data
             log_received_data();
         }
