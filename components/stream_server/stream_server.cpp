@@ -139,7 +139,6 @@ void StreamServerComponent::write() {
             continue;
 
         while ((read = client.socket->read(&buf, sizeof(buf))) > 0) {
-            received_data_.insert(received_data_.end(), this->buf_, this->buf_ + len);
             // Store the received data in the received_data_ buffer
             received_data_.insert(received_data_.end(), buf, buf + read);
 
