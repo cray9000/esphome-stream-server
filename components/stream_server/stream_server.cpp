@@ -170,6 +170,12 @@ void StreamServerComponent::log_received_data() {
     size_t bytes_to_log = std::min(received_data_.size(), size_t(128));  // Limit to first 128 bytes
     std::string log_message = "Received data: ";
 
+    // Check if there is any data to log
+    if (received_data_.empty()) {
+        ESP_LOGD(TAG, "No data received");
+        return;  // Exit if there's no data
+    }
+
     // Loop through the received data and log it in hexadecimal format
     for (size_t i = 0; i < bytes_to_log; ++i) {
         // Convert each byte to a 2-digit hex representation
@@ -178,9 +184,10 @@ void StreamServerComponent::log_received_data() {
         log_message += byte_str;  // Append the byte to the log message
     }
 
-    // Log the message using ESPHome's logging system
+    // Log the complete message using ESPHome's logging system
     ESP_LOGD(TAG, "%s", log_message.c_str());
 }
+
 
 StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
     : socket(std::move(socket)), identifier{identifier}, position{position} {}
