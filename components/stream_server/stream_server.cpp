@@ -139,6 +139,9 @@ void StreamServerComponent::write() {
         while ((read = client.socket->read(&buf, sizeof(buf))) > 0) {
             // Store the received data in the received_data_ buffer
             received_data_.insert(received_data_.end(), buf, buf + read);
+
+            // Log the received data in hex format
+            log_received_data();
         }
 
         if (read == 0 || errno == ECONNRESET) {
@@ -150,6 +153,21 @@ void StreamServerComponent::write() {
             ESP_LOGW(TAG, "Failed to read from client %s with error %d!", client.identifier.c_str(), errno);
         }
     }
+}
+
+// A function to log the received data in a readable hex format
+void StreamServerComponent::log_received_data() {
+    // If you only want to log a portion of the data (e.g., the most recent data)
+    size_t bytes_to_log = std::min(received_data_.size(), size_t(128));  // Limit to first 128 bytes
+    std::string log_message = "Received data: ";
+    
+    for (size_t i = 0; i < bytes_to_log; ++i) {
+        // Append the hex representation of each byte to the log message
+        log_message += fmt::format("{:02X} ", received_data_[i]);
+    }
+
+    // Log the message
+    ESP_LOGD(TAG, "%s", log_message.c_str());
 }
 
 StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
