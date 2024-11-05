@@ -9,6 +9,9 @@
 #include "esphome/components/socket/socket.h"
 
 #include "esphome/core/log.h"  // Ensure you include the logging header
+#include <sstream>
+#include <iomanip>
+
 
 static const char *TAG = "stream_server";
 
