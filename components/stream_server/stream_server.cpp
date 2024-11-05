@@ -87,29 +87,51 @@ void StreamServerComponent::cleanup() {
     }
 }
 
+#include <sys/select.h>  // For select() to check if data is available for reading
+
 void StreamServerComponent::read() {
     size_t len = 0;
     int available;
-    while ((available = this->server_socket_->available()) > 0) {
-        size_t free = this->buf_size_ - (this->buf_head_ - this->buf_tail_);
-        if (free == 0) {
-            if (len > 0)
-                return;
+    
+    // Use select() to check if the socket has data ready to be read
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(this->server_socket_->get_fd(), &read_fds);
 
-            ESP_LOGE(TAG, "Incoming bytes available, but outgoing buffer is full: stream will be corrupted!");
-            free = std::min<size_t>(available, this->buf_size_);
-            this->buf_tail_ += free;
-            for (Client &client : this->clients_) {
-                if (client.position < this->buf_tail_) {
-                    ESP_LOGW(TAG, "Dropped %u pending bytes for client %s", this->buf_tail_ - client.position, client.identifier.c_str());
-                    client.position = this->buf_tail_;
+    struct timeval timeout = { 0, 0 }; // No timeout, we just want to check if data is ready
+    int result = select(this->server_socket_->get_fd() + 1, &read_fds, nullptr, nullptr, &timeout);
+
+    if (result > 0 && FD_ISSET(this->server_socket_->get_fd(), &read_fds)) {
+        // If the socket is readable, we try to read data
+        while ((available = this->server_socket_->read(&this->buf_[this->buf_index(this->buf_head_)], this->buf_size_)) > 0) {
+            size_t free = this->buf_size_ - (this->buf_head_ - this->buf_tail_);
+            if (free == 0) {
+                // If buffer is full, handle accordingly (could overwrite or flush)
+                if (len > 0)
+                    return;
+
+                ESP_LOGE(TAG, "Incoming bytes available, but outgoing buffer is full: stream will be corrupted!");
+                free = std::min<size_t>(available, this->buf_size_);
+                this->buf_tail_ += free;
+                for (Client &client : this->clients_) {
+                    if (client.position < this->buf_tail_) {
+                        ESP_LOGW(TAG, "Dropped %u pending bytes for client %s", this->buf_tail_ - client.position, client.identifier.c_str());
+                        client.position = this->buf_tail_;
+                    }
                 }
             }
-        }
 
-        len = std::min<size_t>(available, std::min<size_t>(this->buf_ahead(this->buf_head_), free));
-        this->server_socket_->read_array(&this->buf_[this->buf_index(this->buf_head_)], len);
-        this->buf_head_ += len;
+            len = std::min<size_t>(available, std::min<size_t>(this->buf_ahead(this->buf_head_), free));
+            this->buf_head_ += len;
+        }
+    }
+    else if (result == 0) {
+        // No data available at the moment
+        ESP_LOGD(TAG, "No data available to read");
+    }
+    else {
+        // An error occurred during select(), handle it
+        ESP_LOGE(TAG, "Error in select() for socket: %d", errno);
     }
 }
 
