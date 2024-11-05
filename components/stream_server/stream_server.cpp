@@ -3,6 +3,7 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 #include "esphome/core/version.h"
+#include <sys/select.h>  // For select() to check if data is available for reading
 
 #include "esphome/components/network/util.h"
 #include "esphome/components/socket/socket.h"
@@ -86,8 +87,6 @@ void StreamServerComponent::cleanup() {
         this->publish_sensor();
     }
 }
-
-#include <sys/select.h>  // For select() to check if data is available for reading
 
 void StreamServerComponent::read() {
     size_t len = 0;
