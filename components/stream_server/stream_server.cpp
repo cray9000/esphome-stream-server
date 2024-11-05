@@ -129,28 +129,24 @@ void StreamServerComponent::flush() {
 }
 
 void StreamServerComponent::write() {
-    uint8_t buf[128];
+    uint8_t buf[128];  // Declare a buffer to hold data
     ssize_t read;
     
-    // Assuming len is the number of bytes you're reading from the client socket
     for (Client &client : this->clients_) {
         if (client.disconnected)
             continue;
 
-        while ((read = client.socket->read(&buf, sizeof(buf))) > 0) {
-            // Do something with the data
-            // For example, send it to another output device
+        while ((read = client.socket->read(buf, sizeof(buf))) > 0) {
+            // Log buffer data size first
+            ESP_LOGD(TAG, "Buffer data (size: %d):", read);
             
-            // Set len to the number of bytes read from the client
-            size_t len = read;  // This defines the number of bytes to process
+            // Log actual data in hex format
+            for (size_t i = 0; i < read; ++i) {
+                ESP_LOGD(TAG, "Byte %d: %02X", i, buf[i]);
+            }
 
-            // Log the size of the data in the buffer
-            ESP_LOGD(TAG, "Buffer data (size: %d):", len);
-
-            // Assuming this is the read logic
+            // Optionally, insert into received data
             this->received_data_.insert(this->received_data_.end(), buf, buf + read);
-
-            // Add more logic here to send the data to another device, process it, etc.
         }
 
         if (read == 0 || errno == ECONNRESET) {
@@ -163,7 +159,6 @@ void StreamServerComponent::write() {
         }
     }
 }
-
 
 // Log the received data in a human-readable format (hex)
 void StreamServerComponent::log_received_data() {
