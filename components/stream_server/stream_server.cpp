@@ -129,6 +129,9 @@ void StreamServerComponent::flush() {
 void StreamServerComponent::write() {
     uint8_t buf[128];
     ssize_t read;
+    // A buffer to store received data in the component
+    std::vector<uint8_t> received_data_;
+    
     for (Client &client : this->clients_) {
         if (client.disconnected)
             continue;
