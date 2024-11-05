@@ -47,9 +47,9 @@ protected:
     void flush();
     void write();
 
-    size_t buf_index(size_t pos) { return pos & (this->buf_size_ - 1); }
+    //size_t buf_index(size_t pos) { return pos & (this->buf_size_ - 1); }
     /// Return the number of consecutive elements that are ahead of @p pos in memory.
-    size_t buf_ahead(size_t pos) { return (pos | (this->buf_size_ - 1)) - pos + 1; }
+    //size_t buf_ahead(size_t pos) { return (pos | (this->buf_size_ - 1)) - pos + 1; }
 
     struct Client {
         Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position);
