@@ -94,32 +94,10 @@ void StreamServerComponent::cleanup() {
 }
 
 void StreamServerComponent::read() {
-    // A buffer to store received data in the component
-    std::vector<uint8_t> received_data_;
     size_t len = 0;
-    int available = this->stream_->available();  // Check if data is available
-
-    if (available <= 0) {
-        ESP_LOGD(TAG, "No data available to read");
-        return;  // If no data is available, exit early
-    }
-
-    size_t free = this->buf_size_ - (this->buf_head_ - this->buf_tail_);
-    if (free == 0) {
-        // Handle buffer overflow scenario
-        return;
-    }
-
-    // Read data
-    len = std::min<size_t>(available, free);
-    this->stream_->read_array(&this->buf_[this->buf_index(this->buf_head_)], len);
-    this->buf_head_ += len;
-
-    // Add the received data to the received_data_ vector
-    received_data_.insert(received_data_.end(), this->buf_, this->buf_ + len);
-
-    // Log the received data
-    log_received_data();
+    int available;
+    // There is no UART stream anymore; this function now doesn't do anything.
+    // You can replace it with a custom data source if necessary (e.g., network, file).
 }
 
 void StreamServerComponent::flush() {
@@ -192,7 +170,6 @@ void StreamServerComponent::log_received_data() {
     }
 
     // Log the message using ESPHome's logging system
-    ESP_LOGD(TAG, "Received data size: %zu", received_data_.size());
     ESP_LOGD(TAG, "%s", log_message.c_str());
 }
 
