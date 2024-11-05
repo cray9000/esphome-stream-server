@@ -166,6 +166,11 @@ void StreamServerComponent::write() {
 void StreamServerComponent::log_received_data() {
     ESP_LOGD(TAG, "Logging received data...");
 
+    // Log the actual data in hex format (optional, if needed)
+for (size_t i = 0; i < len; ++i) {
+    ESP_LOGD(TAG, "Byte %d: %02X", i, buf[i]);
+}
+
     if (received_data_.empty()) {
         ESP_LOGD(TAG, "No data to log");
         return;
