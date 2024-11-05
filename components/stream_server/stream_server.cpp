@@ -16,7 +16,7 @@ void StreamServerComponent::setup() {
     ESP_LOGCONFIG(TAG, "Setting up stream server...");
 
     // The make_unique() wrapper doesn't like arrays, so initialize the unique_ptr directly.
-    this->buf_ = std::unique_ptr<uint8_t[]>{new uint8_t[this->buf_size_]};
+    this->buf = std::unique_ptr<uint8_t[]>{new uint8_t[this->buf_size_]};  // Change 'buf_' to 'buf'
 
     struct sockaddr_storage bind_addr;
 #if ESPHOME_VERSION_CODE >= VERSION_CODE(2023, 4, 0)
@@ -106,9 +106,9 @@ void StreamServerComponent::flush() {
             continue;
 
         struct iovec iov[2];
-        iov[0].iov_base = &this->buf_[this->buf_index(client.position)];
+        iov[0].iov_base = &this->buf[this->buf_index(client.position)];  // Change 'buf_' to 'buf'
         iov[0].iov_len = std::min(this->buf_head_ - client.position, this->buf_ahead(client.position));
-        iov[1].iov_base = &this->buf_[0];
+        iov[1].iov_base = &this->buf[0];  // Change 'buf_' to 'buf'
         iov[1].iov_len = this->buf_head_ - (client.position + iov[0].iov_len);
         if ((written = client.socket->writev(iov, 2)) > 0) {
             client.position += written;
