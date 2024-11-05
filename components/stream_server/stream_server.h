@@ -2,7 +2,6 @@
 
 #include "esphome/core/component.h"
 #include "esphome/components/socket/socket.h"
-#include "esphome/components/uart/uart.h"
 
 #ifdef USE_BINARY_SENSOR
 #include "esphome/components/binary_sensor/binary_sensor.h"
@@ -18,9 +17,6 @@
 class StreamServerComponent : public esphome::Component {
 public:
     StreamServerComponent() = default;
-    explicit StreamServerComponent(esphome::uart::UARTComponent *stream) : stream_{stream} {}
-    void set_uart_parent(esphome::uart::UARTComponent *parent) { this->stream_ = parent; }
-    void set_buffer_size(size_t size) { this->buf_size_ = size; }
 
 #ifdef USE_BINARY_SENSOR
     void set_connected_sensor(esphome::binary_sensor::BinarySensor *connected) { this->connected_sensor_ = connected; }
@@ -48,7 +44,6 @@ protected:
     void write();
 
     size_t buf_index(size_t pos) { return pos & (this->buf_size_ - 1); }
-    /// Return the number of consecutive elements that are ahead of @p pos in memory.
     size_t buf_ahead(size_t pos) { return (pos | (this->buf_size_ - 1)) - pos + 1; }
 
     struct Client {
@@ -60,7 +55,6 @@ protected:
         size_t position{0};
     };
 
-    esphome::uart::UARTComponent *stream_{nullptr};
     uint16_t port_;
     size_t buf_size_;
 
@@ -71,10 +65,10 @@ protected:
     esphome::sensor::Sensor *connection_count_sensor_;
 #endif
 
-    std::unique_ptr<uint8_t[]> buf_{};
+    std::unique_ptr<uint8_t[]> buf{};
     size_t buf_head_{0};
     size_t buf_tail_{0};
 
     std::unique_ptr<esphome::socket::Socket> socket_{};
-    std::vector<Client> clients_{};
+    std::vector<Client> clients_;
 };
