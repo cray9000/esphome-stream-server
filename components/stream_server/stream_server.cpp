@@ -131,7 +131,7 @@ void StreamServerComponent::flush() {
 void StreamServerComponent::write() {
     uint8_t buf[128];  // Declare a buffer to hold data
     ssize_t read;
-    
+
     for (Client &client : this->clients_) {
         if (client.disconnected)
             continue;
@@ -139,13 +139,13 @@ void StreamServerComponent::write() {
         while ((read = client.socket->read(buf, sizeof(buf))) > 0) {
             // Log buffer data size first
             ESP_LOGD(TAG, "Buffer data (size: %d):", read);
-            
+
             // Build a hex string of the data
             std::stringstream hex_data;
             for (size_t i = 0; i < read; ++i) {
                 hex_data << std::hex << std::setw(2) << std::setfill('0') << (int)buf[i] << " ";
             }
-            
+
             // Log all the bytes in one message
             ESP_LOGD(TAG, "%s", hex_data.str().c_str());
 
@@ -163,6 +163,7 @@ void StreamServerComponent::write() {
         }
     }
 }
+
 
 // Log the received data in a human-readable format (hex)
 void StreamServerComponent::log_received_data() {
