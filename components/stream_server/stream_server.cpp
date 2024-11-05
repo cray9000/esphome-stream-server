@@ -8,6 +8,8 @@
 #include "esphome/components/network/util.h"
 #include "esphome/components/socket/socket.h"
 
+#include "esphome/core/log.h"  // Ensure you include the logging header
+
 static const char *TAG = "stream_server";
 
 using namespace esphome;
