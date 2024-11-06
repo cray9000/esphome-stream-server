@@ -176,7 +176,7 @@ void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
     uint8_t function_code = buf[7];  // Modbus function code (e.g., 3 for Read Holding Registers)
     
     uint16_t register_address = (buf[9] << 8) | buf[10];  // Register address
-    uint8_t num_registers = (buf[12]);  // Number of registers requested (1-125)
+    uint8_t num_registers = buf[12];  // Number of registers requested
 
     ESP_LOGD(TAG, "Modbus Request - Unit ID: %d, Function Code: %d, Register Address: %d, Num Registers: %d",
              unit_id, function_code, register_address, num_registers);
@@ -186,7 +186,7 @@ void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
         // Check that the number of registers is valid (1-125)
         if (num_registers < 1 || num_registers > 125) {
             ESP_LOGE(TAG, "Invalid number of registers requested: %d", num_registers);
-            return;
+            return;  // Invalid register count, return early
         }
 
         // Prepare a Modbus response
@@ -209,12 +209,11 @@ void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
         }
 
         // Send the response back to the client (you would need to implement the actual sending logic)
-       // this->send_response(response, sizeof(response));  // Send back the response
+        // this->send_response(response, sizeof(response));  // Send back the response
     } else {
         ESP_LOGE(TAG, "Unsupported function code: %d", function_code);
     }
 }
-
 
 StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
     : socket(std::move(socket)), identifier{identifier}, position{position} {}
