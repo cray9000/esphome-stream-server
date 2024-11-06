@@ -184,6 +184,5 @@ void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
     }
 }
 
-
 StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
     : socket(std::move(socket)), identifier{identifier}, position{position} {}
