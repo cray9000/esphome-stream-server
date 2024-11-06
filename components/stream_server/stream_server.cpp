@@ -171,21 +171,50 @@ void StreamServerComponent::write() {
 void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
     if (len < 12) return;  // Minimal Modbus TCP frame size
 
+    // Modbus TCP frame structure
+    uint8_t unit_id = buf[6];  // Unit identifier
     uint8_t function_code = buf[7];  // Modbus function code (e.g., 3 for Read Holding Registers)
+    
     uint16_t register_address = (buf[9] << 8) | buf[10];  // Register address
-    uint8_t num_registers = buf[12];  // Number of registers requested
+    uint8_t num_registers = (buf[12]);  // Number of registers requested (1-125)
 
-    ESP_LOGD(TAG, "Modbus Request - Function Code: %d, Register Address: %d, Num Registers: %d",
-             function_code, register_address, num_registers);
+    ESP_LOGD(TAG, "Modbus Request - Unit ID: %d, Function Code: %d, Register Address: %d, Num Registers: %d",
+             unit_id, function_code, register_address, num_registers);
 
-    // Example logic to handle the Modbus request
-    if (function_code == 3) {  // Read Holding Registers
-        // Send a response with the register values
-        uint8_t response[256];  // Modify according to your needs
-        // Fill the response with the correct data
-        // Send the response back to the client
+    // Check if the function code is 3 (Read Holding Registers)
+    if (function_code == 3) {
+        // Check that the number of registers is valid (1-125)
+        if (num_registers < 1 || num_registers > 125) {
+            ESP_LOGE(TAG, "Invalid number of registers requested: %d", num_registers);
+            return;
+        }
+
+        // Prepare a Modbus response
+        uint8_t response[5 + 2 * num_registers];  // Start with the header and register values
+        response[0] = buf[0];  // Transaction Identifier (copy from request)
+        response[1] = buf[1];
+        response[2] = buf[2];  // Protocol Identifier (copy from request)
+        response[3] = buf[3];
+        response[4] = 2 * num_registers;  // Byte count (each register is 2 bytes)
+
+        // Function Code for the response (same as the request)
+        response[5] = function_code;
+
+        // Fill register values into the response
+        for (uint8_t i = 0; i < num_registers; i++) {
+            // Here you would retrieve actual register values. For now, we'll just simulate some values.
+            uint16_t register_value = 0x1234 + i;  // Example value, adjust as needed
+            response[6 + i * 2] = (register_value >> 8) & 0xFF;  // High byte
+            response[7 + i * 2] = register_value & 0xFF;  // Low byte
+        }
+
+        // Send the response back to the client (you would need to implement the actual sending logic)
+        this->send_response(response, sizeof(response));  // Send back the response
+    } else {
+        ESP_LOGE(TAG, "Unsupported function code: %d", function_code);
     }
 }
+
 
 StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
     : socket(std::move(socket)), identifier{identifier}, position{position} {}
