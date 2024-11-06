@@ -98,39 +98,6 @@ void StreamServerComponent::cleanup() {
 
 void StreamServerComponent::read() {
     size_t len = 0;
-    int available;
-    // There is no UART stream anymore; this function now doesn't do anything.
-    // You can replace it with a custom data source if necessary (e.g., network, file).
-}
-
-void StreamServerComponent::flush() {
-    ssize_t written;
-    this->buf_tail_ = this->buf_head_;
-    for (Client &client : this->clients_) {
-        if (client.disconnected || client.position == this->buf_head_)
-            continue;
-
-        struct iovec iov[2];
-        iov[0].iov_base = &this->buf[this->buf_index(client.position)];  // Change 'buf_' to 'buf'
-        iov[0].iov_len = std::min(this->buf_head_ - client.position, this->buf_ahead(client.position));
-        iov[1].iov_base = &this->buf[0];  // Change 'buf_' to 'buf'
-        iov[1].iov_len = this->buf_head_ - (client.position + iov[0].iov_len);
-        if ((written = client.socket->writev(iov, 2)) > 0) {
-            client.position += written;
-        } else if (written == 0 || errno == ECONNRESET) {
-            ESP_LOGD(TAG, "Client %s disconnected", client.identifier.c_str());
-            client.disconnected = true;
-            continue;
-        } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            // Expected if the (TCP) transmit buffer is full, nothing to do.
-        } else {
-            ESP_LOGE(TAG, "Failed to write to client %s with error %d!", client.identifier.c_str(), errno);
-        }
-        this->buf_tail_ = std::min(this->buf_tail_, client.position);
-    }
-}
-
-void StreamServerComponent::write() {
     uint8_t buf[128];  // Declare a buffer to hold data
     ssize_t read;
 
@@ -164,6 +131,39 @@ void StreamServerComponent::write() {
             ESP_LOGW(TAG, "Failed to read from client %s with error %d!", client.identifier.c_str(), errno);
         }
     }
+}
+
+void StreamServerComponent::flush() {
+    ssize_t written;
+    this->buf_tail_ = this->buf_head_;
+    for (Client &client : this->clients_) {
+        if (client.disconnected || client.position == this->buf_head_)
+            continue;
+
+        struct iovec iov[2];
+        iov[0].iov_base = &this->buf[this->buf_index(client.position)];  // Change 'buf_' to 'buf'
+        iov[0].iov_len = std::min(this->buf_head_ - client.position, this->buf_ahead(client.position));
+        iov[1].iov_base = &this->buf[0];  // Change 'buf_' to 'buf'
+        iov[1].iov_len = this->buf_head_ - (client.position + iov[0].iov_len);
+        if ((written = client.socket->writev(iov, 2)) > 0) {
+            client.position += written;
+        } else if (written == 0 || errno == ECONNRESET) {
+            ESP_LOGD(TAG, "Client %s disconnected", client.identifier.c_str());
+            client.disconnected = true;
+            continue;
+        } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
+            // Expected if the (TCP) transmit buffer is full, nothing to do.
+        } else {
+            ESP_LOGE(TAG, "Failed to write to client %s with error %d!", client.identifier.c_str(), errno);
+        }
+        this->buf_tail_ = std::min(this->buf_tail_, client.position);
+    }
+}
+
+void StreamServerComponent::write() {
+    int available;
+    // There is no UART stream anymore; this function now doesn't do anything.
+    // You can replace it with a custom data source if necessary (e.g., network, file).
 }
 
 void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
