@@ -121,7 +121,7 @@ void StreamServerComponent::read() {
             this->received_data_.insert(this->received_data_.end(), buf, buf + read);
 
             // Pass the data to the Modbus parser
-            this->parse_modbus_request(buf, read);
+            //this->parse_modbus_request(buf, read);
         }
 
         if (read == 0 || errno == ECONNRESET) {
