@@ -217,7 +217,7 @@ void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
             response[10] = 0x34; // Second byte of register 0x1234
 
             // Send the response to the client (you might want to implement the actual sending logic)
-            this->send_response(response, 11);  // Length of the response (dummy example)
+            //this->send_response(response, 11);  // Length of the response (dummy example)
             break;
 
         case 6:  // Write Single Register
