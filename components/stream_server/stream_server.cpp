@@ -165,5 +165,6 @@ void StreamServerComponent::write() {
     }
 }
 
+
 StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
     : socket(std::move(socket)), identifier{identifier}, position{position} {}
