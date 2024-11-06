@@ -213,6 +213,20 @@ void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
     }
 }
 
+void send_modbus_exception(uint8_t unit_id, uint8_t function_code, uint8_t exception_code) {
+    uint8_t response[5] = {0};
+    response[0] = 0x00;  // Transaction Identifier (set to 0 as an example)
+    response[1] = 0x00;
+    response[2] = 0x00;  // Protocol Identifier
+    response[3] = 0x00;
+    response[4] = 0x03;  // Byte count (always 3 for exception response)
+    response[5] = function_code | 0x80;  // Set MSB of function code for exception
+    response[6] = exception_code;  // Exception code
+
+    // Send the exception response back to the client
+    send_response(response, sizeof(response));  // You need to implement send_response()
+}
+
 
 StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
     : socket(std::move(socket)), identifier{identifier}, position{position} {}
