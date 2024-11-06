@@ -165,24 +165,6 @@ void StreamServerComponent::write() {
     }
 }
 
-void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
-    if (len < 12) return;  // Minimal Modbus TCP frame size
-
-    uint8_t function_code = buf[7];
-    uint16_t register_address = (buf[9] << 8) | buf[10];
-    uint8_t num_registers = buf[12];
-
-    ESP_LOGD(TAG, "Modbus Request - Function Code: %d, Register Address: %d, Num Registers: %d",
-             function_code, register_address, num_registers);
-
-    // Example logic to handle the Modbus request
-    if (function_code == 3) {  // Read Holding Registers
-        // Send a response with the register values
-        uint8_t response[256];  // Modify according to your needs
-        // Fill the response with the correct data
-        // Send the response back to the client
-    }
-}
 
 StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
     : socket(std::move(socket)), identifier{identifier}, position{position} {}
