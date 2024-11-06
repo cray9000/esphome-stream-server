@@ -42,6 +42,8 @@ protected:
     void read();
     void flush();
     void write();
+    void parse_modbus_request(uint8_t *buf, ssize_t len);  // Add declaration for Modbus parsing
+
 
     // Declare log_received_data as a protected method
     void log_received_data();  
