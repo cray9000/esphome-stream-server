@@ -209,7 +209,7 @@ void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
         }
 
         // Send the response back to the client (you would need to implement the actual sending logic)
-        // this->send_response(response, sizeof(response));  // Send back the response
+        this->send_response(response, sizeof(response));  // Send back the response
     } else {
         ESP_LOGE(TAG, "Unsupported function code: %d", function_code);
     }
