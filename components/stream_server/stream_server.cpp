@@ -42,7 +42,6 @@ void StreamServerComponent::loop() {
     this->read();
     this->flush();
     this->write();
-    this->parse_modbus_request();
     this->cleanup();
 }
 
