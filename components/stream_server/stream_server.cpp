@@ -34,7 +34,6 @@ void StreamServerComponent::setup() {
     this->socket_->setblocking(false);
     this->socket_->bind(reinterpret_cast<struct sockaddr *>(&bind_addr), bind_addrlen);
     this->socket_->listen(8);
-
     this->publish_sensor();
 }
 
@@ -126,7 +125,6 @@ void StreamServerComponent::flush() {
         } else {
             ESP_LOGE(TAG, "Failed to write to client %s with error %d!", client.identifier.c_str(), errno);
         }
-
         this->buf_tail_ = std::min(this->buf_tail_, client.position);
     }
 }
