@@ -169,21 +169,65 @@ void StreamServerComponent::write() {
 }
 
 void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
-    if (len < 12) return;  // Minimal Modbus TCP frame size
+    // Log the buffer size and content for debugging
+    ESP_LOGD(TAG, "Buffer data (size: %d):", len);
+    for (ssize_t i = 0; i < len; ++i) {
+        ESP_LOGD(TAG, "%02x", buf[i]);
+    }
 
-    uint8_t function_code = buf[7];  // Modbus function code (e.g., 3 for Read Holding Registers)
-    uint16_t register_address = (buf[9] << 8) | buf[10];  // Register address
-    uint8_t num_registers = buf[12];  // Number of registers requested
+    // Make sure the Modbus frame is at least long enough to process (minimum 12 bytes for Modbus TCP)
+    if (len < 12) {
+        ESP_LOGW(TAG, "Modbus request is too short to process.");
+        return;
+    }
 
+    // Extract Modbus function code and request details
+    uint8_t function_code = buf[7];  // Function code
+    uint16_t register_address = (buf[9] << 8) | buf[10];  // Register address (big-endian)
+    uint16_t num_registers = (buf[12] << 8) | buf[13];  // Number of registers (big-endian)
+
+    // Log function code and details
     ESP_LOGD(TAG, "Modbus Request - Function Code: %d, Register Address: %d, Num Registers: %d",
              function_code, register_address, num_registers);
 
-    // Example logic to handle the Modbus request
-    if (function_code == 3) {  // Read Holding Registers
-        // Send a response with the register values
-        uint8_t response[256];  // Modify according to your needs
-        // Fill the response with the correct data
-        // Send the response back to the client
+    // Handle based on function code
+    switch (function_code) {
+        case 3:  // Read Holding Registers
+            // Validate register address and number of registers
+            if (num_registers == 0) {
+                ESP_LOGW(TAG, "No registers to read.");
+                return;
+            }
+
+            // Here, you would process the read request and generate a response (you can simulate or interact with actual registers)
+            // For example, sending a dummy response with a single register
+            uint8_t response[256];
+            response[0] = buf[0];  // Transaction ID
+            response[1] = buf[1];
+            response[2] = buf[2];  // Protocol ID
+            response[3] = buf[3];
+            response[4] = buf[4];  // Length (needs to be updated)
+            response[5] = buf[5];
+            response[6] = buf[6];
+            response[7] = buf[7];  // Function Code (same as request)
+
+            // Example of filling in a dummy register value (e.g., 0x1234)
+            response[8] = num_registers * 2;  // Number of bytes to follow (2 bytes per register)
+            response[9] = 0x12;  // First byte of register 0x1234
+            response[10] = 0x34; // Second byte of register 0x1234
+
+            // Send the response to the client (you might want to implement the actual sending logic)
+            this->send_response(response, 11);  // Length of the response (dummy example)
+            break;
+
+        case 6:  // Write Single Register
+            // Handle register write requests here (function code 0x06)
+            ESP_LOGD(TAG, "Write Single Register Request.");
+            break;
+
+        default:
+            ESP_LOGW(TAG, "Unsupported Modbus function code: %d", function_code);
+            break;
     }
 }
 
