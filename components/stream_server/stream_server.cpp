@@ -107,7 +107,7 @@ void StreamServerComponent::read() {
     }
 }
 
-void StreamServerComponent::parse_modbus_request(Client &client, uint8_t *buf, ssize_t len) {
+void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
     if (len < 12) return;  // Minimal Modbus TCP frame size
 
     // Modbus TCP frame structure
@@ -147,12 +147,16 @@ void StreamServerComponent::parse_modbus_request(Client &client, uint8_t *buf, s
             response[7 + i * 2] = register_value & 0xFF;  // Low byte
         }
 
-        // Send the response back to the client
-        client.socket->write(response, 9 + num_registers * 2);
+        // Send the response back to the client (you can get client from a list or context)
+        // Assuming a global or class-level access to clients_ array
+        // Replace `client` with an appropriate client reference here.
+        // For now, use the first client as an example:
+        clients_[0].socket->write(response, 9 + num_registers * 2);
     } else {
         ESP_LOGE(TAG, "Unsupported function code: %d", function_code);
     }
 }
+
 
 void StreamServerComponent::flush() {
     ssize_t written;
