@@ -106,7 +106,7 @@ void StreamServerComponent::read() {
     }
 }
 
-void StreamServerComponent::handle_modbus_request(uint8_t *buf, ssize_t len) {
+void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
     uint16_t register_address = (buf[9] << 8) | buf[10];
     uint8_t num_registers = buf[12];
 
