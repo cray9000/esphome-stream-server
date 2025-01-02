@@ -80,19 +80,20 @@ void StreamServerComponent::read() {
             // Log buffer data size first
             ESP_LOGD(TAG, "Buffer data (size: %d):", read);
 
-            // Check Modbus request (assuming a valid request starts with at least 12 bytes)
-            if (read >= 12) {
-                uint8_t function_code = buf[7];
-                uint16_t register_address = (buf[9] << 8) | buf[10];
-
-                // Handle the Modbus request
-                if (function_code == 3) {
-                    parse_modbus_request(buf, read);
-                }
+            // Build a hex string of the data
+            std::stringstream hex_data;
+            for (size_t i = 0; i < read; ++i) {
+                hex_data << std::hex << std::setw(2) << std::setfill('0') << (int)buf[i] << " ";
             }
+
+            // Log all the bytes in one message
+            ESP_LOGD(TAG, "%s", hex_data.str().c_str());
 
             // Optionally, insert into received data
             this->received_data_.insert(this->received_data_.end(), buf, buf + read);
+
+            // Pass the client object and data to the Modbus parser
+            this->parse_modbus_request(client, buf, read);
         }
 
         if (read == 0 || errno == ECONNRESET) {
@@ -106,46 +107,51 @@ void StreamServerComponent::read() {
     }
 }
 
-void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
-    uint16_t register_address = (buf[9] << 8) | buf[10];
-    uint8_t num_registers = buf[12];
+void StreamServerComponent::parse_modbus_request(Client &client, uint8_t *buf, ssize_t len) {
+    if (len < 12) return;  // Minimal Modbus TCP frame size
 
-    ESP_LOGD(TAG, "Modbus Request - Register: %d, Num Registers: %d", register_address, num_registers);
+    // Modbus TCP frame structure
+    uint8_t unit_id = buf[6];  // Unit identifier
+    uint8_t function_code = buf[7];  // Modbus function code (e.g., 3 for Read Holding Registers)
+    
+    uint16_t register_address = (buf[9] << 8) | buf[10];  // Register address
+    uint8_t num_registers = buf[12];  // Number of registers requested
 
-    // Example Modbus register mapping, similar to your script
-    uint8_t response[256];  // Ensure there's enough space for the response
+    ESP_LOGD(TAG, "Modbus Request - Unit ID: %d, Function Code: %d, Register Address: %d, Num Registers: %d",
+             unit_id, function_code, register_address, num_registers);
 
-    // Set common Modbus response headers
-    response[0] = buf[0];  // Transaction ID
-    response[1] = buf[1];
-    response[2] = buf[2];  // Protocol ID
-    response[3] = buf[3];
-    response[4] = 0;  // Length (to be filled)
-    response[5] = 0;  // Length (to be filled)
-    response[6] = num_registers * 2 + 3;  // Byte count
-    response[7] = buf[7];  // Device address
-    response[8] = buf[8];  // Function code
+    // Check if the function code is 3 (Read Holding Registers)
+    if (function_code == 3) {
+        // Check that the number of registers is valid (1-125)
+        if (num_registers < 1 || num_registers > 125) {
+            ESP_LOGE(TAG, "Invalid number of registers requested: %d", num_registers);
+            return;  // Invalid register count, return early
+        }
 
-    // Depending on register_address, set the response data
-    switch (register_address) {
-        case 40000:
-            response[9] = 0x42;  // Example value for register 40000
-            response[10] = 0x00;
-            response[11] = 0x00;
-            response[12] = 0x01;
-            break;
-        case 40002:
-            response[9] = 0x01;  // Example for register 40002
-            response[10] = 0x00;
-            break;
-        // Add more cases for other registers...
-        default:
-            ESP_LOGW(TAG, "Unknown register address: %d", register_address);
-            break;
+        // Prepare a Modbus response
+        uint8_t response[5 + 2 * num_registers];  // Start with the header and register values
+        response[0] = buf[0];  // Transaction Identifier (copy from request)
+        response[1] = buf[1];
+        response[2] = buf[2];  // Protocol Identifier (copy from request)
+        response[3] = buf[3];
+        response[4] = 2 * num_registers;  // Byte count (each register is 2 bytes)
+
+        // Function Code for the response (same as the request)
+        response[5] = function_code;
+
+        // Fill register values into the response
+        for (uint8_t i = 0; i < num_registers; i++) {
+            // Here you would retrieve actual register values. For now, we'll just simulate some values.
+            uint16_t register_value = 0x1234 + i;  // Example value, adjust as needed
+            response[6 + i * 2] = (register_value >> 8) & 0xFF;  // High byte
+            response[7 + i * 2] = register_value & 0xFF;  // Low byte
+        }
+
+        // Send the response back to the client
+        client.socket->write(response, 9 + num_registers * 2);
+    } else {
+        ESP_LOGE(TAG, "Unsupported function code: %d", function_code);
     }
-
-    // Send Modbus response
-    client.socket->write(response, 9 + num_registers * 2);
 }
 
 void StreamServerComponent::flush() {
