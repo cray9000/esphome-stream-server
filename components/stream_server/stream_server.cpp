@@ -87,7 +87,7 @@ void StreamServerComponent::read() {
 
                 // Handle the Modbus request
                 if (function_code == 3) {
-                    handle_modbus_request(buf, read);
+                    parse_modbus_request(buf, read);
                 }
             }
 
