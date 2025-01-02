@@ -12,18 +12,15 @@
 #include <sstream>
 #include <iomanip>
 
+
 static const char *TAG = "stream_server";
 
 using namespace esphome;
 
-// Example values for Modbus Registers
-int vsml1 = 1000;  // Example value for measurement 1
-int vsml2 = 2000;  // Example value for measurement 2
-int vsml3 = 3000;  // Example value for measurement 3
-
 void StreamServerComponent::setup() {
     ESP_LOGCONFIG(TAG, "Setting up stream server...");
 
+    // The make_unique() wrapper doesn't like arrays, so initialize the unique_ptr directly.
     this->buf = std::unique_ptr<uint8_t[]>{new uint8_t[this->buf_size_]};  // Change 'buf_' to 'buf'
 
     struct sockaddr_storage bind_addr;
@@ -51,6 +48,28 @@ void StreamServerComponent::loop() {
 void StreamServerComponent::dump_config() {
     ESP_LOGCONFIG(TAG, "Stream Server:");
     ESP_LOGCONFIG(TAG, "  Address: %s:%u", esphome::network::get_use_address().c_str(), this->port_);
+#ifdef USE_BINARY_SENSOR
+    LOG_BINARY_SENSOR("  ", "Connected:", this->connected_sensor_);
+#endif
+#ifdef USE_SENSOR
+    LOG_SENSOR("  ", "Connection count:", this->connection_count_sensor_);
+#endif
+}
+
+void StreamServerComponent::on_shutdown() {
+    for (const Client &client : this->clients_)
+        client.socket->shutdown(SHUT_RDWR);
+}
+
+void StreamServerComponent::publish_sensor() {
+#ifdef USE_BINARY_SENSOR
+    if (this->connected_sensor_)
+        this->connected_sensor_->publish_state(this->clients_.size() > 0);
+#endif
+#ifdef USE_SENSOR
+    if (this->connection_count_sensor_)
+        this->connection_count_sensor_->publish_state(this->clients_.size());
+#endif
 }
 
 void StreamServerComponent::accept() {
@@ -65,6 +84,15 @@ void StreamServerComponent::accept() {
     this->clients_.emplace_back(std::move(socket), identifier, this->buf_head_);
     ESP_LOGD(TAG, "New client connected from %s", identifier.c_str());
     this->publish_sensor();
+}
+
+void StreamServerComponent::cleanup() {
+    auto discriminator = [](const Client &client) { return !client.disconnected; };
+    auto last_client = std::partition(this->clients_.begin(), this->clients_.end(), discriminator);
+    if (last_client != this->clients_.end()) {
+        this->clients_.erase(last_client, this->clients_.end());
+        this->publish_sensor();
+    }
 }
 
 void StreamServerComponent::read() {
@@ -92,8 +120,8 @@ void StreamServerComponent::read() {
             // Optionally, insert into received data
             this->received_data_.insert(this->received_data_.end(), buf, buf + read);
 
-            // Pass the client object and data to the Modbus parser
-            this->parse_modbus_request(buf, read);
+            // Pass the data to the Modbus parser
+            //this->parse_modbus_request(buf, read);
         }
 
         if (read == 0 || errno == ECONNRESET) {
@@ -105,6 +133,39 @@ void StreamServerComponent::read() {
             ESP_LOGW(TAG, "Failed to read from client %s with error %d!", client.identifier.c_str(), errno);
         }
     }
+}
+
+void StreamServerComponent::flush() {
+    ssize_t written;
+    this->buf_tail_ = this->buf_head_;
+    for (Client &client : this->clients_) {
+        if (client.disconnected || client.position == this->buf_head_)
+            continue;
+
+        struct iovec iov[2];
+        iov[0].iov_base = &this->buf[this->buf_index(client.position)];  // Change 'buf_' to 'buf'
+        iov[0].iov_len = std::min(this->buf_head_ - client.position, this->buf_ahead(client.position));
+        iov[1].iov_base = &this->buf[0];  // Change 'buf_' to 'buf'
+        iov[1].iov_len = this->buf_head_ - (client.position + iov[0].iov_len);
+        if ((written = client.socket->writev(iov, 2)) > 0) {
+            client.position += written;
+        } else if (written == 0 || errno == ECONNRESET) {
+            ESP_LOGD(TAG, "Client %s disconnected", client.identifier.c_str());
+            client.disconnected = true;
+            continue;
+        } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
+            // Expected if the (TCP) transmit buffer is full, nothing to do.
+        } else {
+            ESP_LOGE(TAG, "Failed to write to client %s with error %d!", client.identifier.c_str(), errno);
+        }
+        this->buf_tail_ = std::min(this->buf_tail_, client.position);
+    }
+}
+
+void StreamServerComponent::write() {
+    int available;
+    // There is no UART stream anymore; this function now doesn't do anything.
+    // You can replace it with a custom data source if necessary (e.g., network, file).
 }
 
 void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
@@ -147,49 +208,13 @@ void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
             response[7 + i * 2] = register_value & 0xFF;  // Low byte
         }
 
-        // Send the response back to the client (you can get client from a list or context)
-        // Assuming a global or class-level access to clients_ array
-        // Replace `client` with an appropriate client reference here.
-        // For now, use the first client as an example:
-        clients_[0].socket->write(response, 9 + num_registers * 2);
+        // Send the response back to the client (you would need to implement the actual sending logic)
+        // this->send_response(response, sizeof(response));  // Send back the response
     } else {
         ESP_LOGE(TAG, "Unsupported function code: %d", function_code);
     }
 }
 
 
-void StreamServerComponent::flush() {
-    ssize_t written;
-    this->buf_tail_ = this->buf_head_;
-    for (Client &client : this->clients_) {
-        if (client.disconnected || client.position == this->buf_head_)
-            continue;
-
-        struct iovec iov[2];
-        iov[0].iov_base = &this->buf[this->buf_index(client.position)];
-        iov[0].iov_len = std::min(this->buf_head_ - client.position, this->buf_ahead(client.position));
-        iov[1].iov_base = &this->buf[0];
-        iov[1].iov_len = this->buf_head_ - (client.position + iov[0].iov_len);
-        if ((written = client.socket->writev(iov, 2)) > 0) {
-            client.position += written;
-        } else if (written == 0 || errno == ECONNRESET) {
-            ESP_LOGD(TAG, "Client %s disconnected", client.identifier.c_str());
-            client.disconnected = true;
-            continue;
-        } else if (errno == EWOULDBLOCK || errno == EAGAIN) {
-            // Expected if the (TCP) transmit buffer is full, nothing to do.
-        } else {
-            ESP_LOGE(TAG, "Failed to write to client %s with error %d!", client.identifier.c_str(), errno);
-        }
-        this->buf_tail_ = std::min(this->buf_tail_, client.position);
-    }
-}
-
-void StreamServerComponent::write() {
-    // No UART stream handling needed here; implement custom logic if necessary.
-}
-
-void StreamServerComponent::on_shutdown() {
-    for (const Client &client : this->clients_)
-        client.socket->shutdown(SHUT_RDWR);
-}
+StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
+    : socket(std::move(socket)), identifier{identifier}, position{position} {}
