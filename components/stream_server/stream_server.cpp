@@ -12,15 +12,18 @@
 #include <sstream>
 #include <iomanip>
 
-
 static const char *TAG = "stream_server";
 
 using namespace esphome;
 
+// Example values for Modbus Registers
+int vsml1 = 1000;  // Example value for measurement 1
+int vsml2 = 2000;  // Example value for measurement 2
+int vsml3 = 3000;  // Example value for measurement 3
+
 void StreamServerComponent::setup() {
     ESP_LOGCONFIG(TAG, "Setting up stream server...");
 
-    // The make_unique() wrapper doesn't like arrays, so initialize the unique_ptr directly.
     this->buf = std::unique_ptr<uint8_t[]>{new uint8_t[this->buf_size_]};  // Change 'buf_' to 'buf'
 
     struct sockaddr_storage bind_addr;
@@ -48,28 +51,6 @@ void StreamServerComponent::loop() {
 void StreamServerComponent::dump_config() {
     ESP_LOGCONFIG(TAG, "Stream Server:");
     ESP_LOGCONFIG(TAG, "  Address: %s:%u", esphome::network::get_use_address().c_str(), this->port_);
-#ifdef USE_BINARY_SENSOR
-    LOG_BINARY_SENSOR("  ", "Connected:", this->connected_sensor_);
-#endif
-#ifdef USE_SENSOR
-    LOG_SENSOR("  ", "Connection count:", this->connection_count_sensor_);
-#endif
-}
-
-void StreamServerComponent::on_shutdown() {
-    for (const Client &client : this->clients_)
-        client.socket->shutdown(SHUT_RDWR);
-}
-
-void StreamServerComponent::publish_sensor() {
-#ifdef USE_BINARY_SENSOR
-    if (this->connected_sensor_)
-        this->connected_sensor_->publish_state(this->clients_.size() > 0);
-#endif
-#ifdef USE_SENSOR
-    if (this->connection_count_sensor_)
-        this->connection_count_sensor_->publish_state(this->clients_.size());
-#endif
 }
 
 void StreamServerComponent::accept() {
@@ -86,15 +67,6 @@ void StreamServerComponent::accept() {
     this->publish_sensor();
 }
 
-void StreamServerComponent::cleanup() {
-    auto discriminator = [](const Client &client) { return !client.disconnected; };
-    auto last_client = std::partition(this->clients_.begin(), this->clients_.end(), discriminator);
-    if (last_client != this->clients_.end()) {
-        this->clients_.erase(last_client, this->clients_.end());
-        this->publish_sensor();
-    }
-}
-
 void StreamServerComponent::read() {
     size_t len = 0;
     uint8_t buf[128];  // Declare a buffer to hold data
@@ -108,20 +80,19 @@ void StreamServerComponent::read() {
             // Log buffer data size first
             ESP_LOGD(TAG, "Buffer data (size: %d):", read);
 
-            // Build a hex string of the data
-            std::stringstream hex_data;
-            for (size_t i = 0; i < read; ++i) {
-                hex_data << std::hex << std::setw(2) << std::setfill('0') << (int)buf[i] << " ";
-            }
+            // Check Modbus request (assuming a valid request starts with at least 12 bytes)
+            if (read >= 12) {
+                uint8_t function_code = buf[7];
+                uint16_t register_address = (buf[9] << 8) | buf[10];
 
-            // Log all the bytes in one message
-            ESP_LOGD(TAG, "%s", hex_data.str().c_str());
+                // Handle the Modbus request
+                if (function_code == 3) {
+                    handle_modbus_request(buf, read);
+                }
+            }
 
             // Optionally, insert into received data
             this->received_data_.insert(this->received_data_.end(), buf, buf + read);
-
-            // Pass the data to the Modbus parser
-            //this->parse_modbus_request(buf, read);
         }
 
         if (read == 0 || errno == ECONNRESET) {
@@ -135,6 +106,48 @@ void StreamServerComponent::read() {
     }
 }
 
+void StreamServerComponent::handle_modbus_request(uint8_t *buf, ssize_t len) {
+    uint16_t register_address = (buf[9] << 8) | buf[10];
+    uint8_t num_registers = buf[12];
+
+    ESP_LOGD(TAG, "Modbus Request - Register: %d, Num Registers: %d", register_address, num_registers);
+
+    // Example Modbus register mapping, similar to your script
+    uint8_t response[256];  // Ensure there's enough space for the response
+
+    // Set common Modbus response headers
+    response[0] = buf[0];  // Transaction ID
+    response[1] = buf[1];
+    response[2] = buf[2];  // Protocol ID
+    response[3] = buf[3];
+    response[4] = 0;  // Length (to be filled)
+    response[5] = 0;  // Length (to be filled)
+    response[6] = num_registers * 2 + 3;  // Byte count
+    response[7] = buf[7];  // Device address
+    response[8] = buf[8];  // Function code
+
+    // Depending on register_address, set the response data
+    switch (register_address) {
+        case 40000:
+            response[9] = 0x42;  // Example value for register 40000
+            response[10] = 0x00;
+            response[11] = 0x00;
+            response[12] = 0x01;
+            break;
+        case 40002:
+            response[9] = 0x01;  // Example for register 40002
+            response[10] = 0x00;
+            break;
+        // Add more cases for other registers...
+        default:
+            ESP_LOGW(TAG, "Unknown register address: %d", register_address);
+            break;
+    }
+
+    // Send Modbus response
+    client.socket->write(response, 9 + num_registers * 2);
+}
+
 void StreamServerComponent::flush() {
     ssize_t written;
     this->buf_tail_ = this->buf_head_;
@@ -143,9 +156,9 @@ void StreamServerComponent::flush() {
             continue;
 
         struct iovec iov[2];
-        iov[0].iov_base = &this->buf[this->buf_index(client.position)];  // Change 'buf_' to 'buf'
+        iov[0].iov_base = &this->buf[this->buf_index(client.position)];
         iov[0].iov_len = std::min(this->buf_head_ - client.position, this->buf_ahead(client.position));
-        iov[1].iov_base = &this->buf[0];  // Change 'buf_' to 'buf'
+        iov[1].iov_base = &this->buf[0];
         iov[1].iov_len = this->buf_head_ - (client.position + iov[0].iov_len);
         if ((written = client.socket->writev(iov, 2)) > 0) {
             client.position += written;
@@ -163,58 +176,10 @@ void StreamServerComponent::flush() {
 }
 
 void StreamServerComponent::write() {
-    int available;
-    // There is no UART stream anymore; this function now doesn't do anything.
-    // You can replace it with a custom data source if necessary (e.g., network, file).
+    // No UART stream handling needed here; implement custom logic if necessary.
 }
 
-void StreamServerComponent::parse_modbus_request(uint8_t *buf, ssize_t len) {
-    if (len < 12) return;  // Minimal Modbus TCP frame size
-
-    // Modbus TCP frame structure
-    uint8_t unit_id = buf[6];  // Unit identifier
-    uint8_t function_code = buf[7];  // Modbus function code (e.g., 3 for Read Holding Registers)
-    
-    uint16_t register_address = (buf[9] << 8) | buf[10];  // Register address
-    uint8_t num_registers = buf[12];  // Number of registers requested
-
-    ESP_LOGD(TAG, "Modbus Request - Unit ID: %d, Function Code: %d, Register Address: %d, Num Registers: %d",
-             unit_id, function_code, register_address, num_registers);
-
-    // Check if the function code is 3 (Read Holding Registers)
-    if (function_code == 3) {
-        // Check that the number of registers is valid (1-125)
-        if (num_registers < 1 || num_registers > 125) {
-            ESP_LOGE(TAG, "Invalid number of registers requested: %d", num_registers);
-            return;  // Invalid register count, return early
-        }
-
-        // Prepare a Modbus response
-        uint8_t response[5 + 2 * num_registers];  // Start with the header and register values
-        response[0] = buf[0];  // Transaction Identifier (copy from request)
-        response[1] = buf[1];
-        response[2] = buf[2];  // Protocol Identifier (copy from request)
-        response[3] = buf[3];
-        response[4] = 2 * num_registers;  // Byte count (each register is 2 bytes)
-
-        // Function Code for the response (same as the request)
-        response[5] = function_code;
-
-        // Fill register values into the response
-        for (uint8_t i = 0; i < num_registers; i++) {
-            // Here you would retrieve actual register values. For now, we'll just simulate some values.
-            uint16_t register_value = 0x1234 + i;  // Example value, adjust as needed
-            response[6 + i * 2] = (register_value >> 8) & 0xFF;  // High byte
-            response[7 + i * 2] = register_value & 0xFF;  // Low byte
-        }
-
-        // Send the response back to the client (you would need to implement the actual sending logic)
-        // this->send_response(response, sizeof(response));  // Send back the response
-    } else {
-        ESP_LOGE(TAG, "Unsupported function code: %d", function_code);
-    }
+void StreamServerComponent::on_shutdown() {
+    for (const Client &client : this->clients_)
+        client.socket->shutdown(SHUT_RDWR);
 }
-
-
-StreamServerComponent::Client::Client(std::unique_ptr<esphome::socket::Socket> socket, std::string identifier, size_t position)
-    : socket(std::move(socket)), identifier{identifier}, position{position} {}
